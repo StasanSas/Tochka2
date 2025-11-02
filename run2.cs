@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 
 class Program
 {
@@ -16,24 +17,31 @@ class Program
         var visited = new HashSet<char>();
         visited.Add(currPosition);
         
-        var dictionaryForPath = new Dictionary<char, char>();
-        dictionaryForPath.Add(currPosition, '\0');
+        var dictionaryForPath = new Dictionary<char, List<char>>();
+        dictionaryForPath.Add(currPosition, new List<char>());
         var pathForSort = new List<List<char>>();
-        while (stack1.Count + stack2.Count > 0)
+        while (true)
         {
+            var newVisited = new HashSet<char>();
+            // цикл отвечает заслой в бфс
             while (stack1.Count > 0)
             {
                 currPosition = stack1.Pop();
                 if (Char.IsUpper(currPosition))
-                    pathForSort.Add(GetPathFromDict(dictionaryForPath, currPosition));
+                    pathForSort.AddRange(GetPathFromDict(dictionaryForPath, currPosition));
+                
                 foreach (var nextChar in graph[currPosition])
                 {
                     if (visited.Contains(nextChar)) continue;
-                    dictionaryForPath[nextChar] = currPosition;
-                    visited.Add(nextChar);
-                    stack2.Push(nextChar);
+                    if (!dictionaryForPath.ContainsKey(nextChar))
+                        dictionaryForPath[nextChar] = new List<char>();
+                    dictionaryForPath[nextChar].Add(currPosition);
+                    if (!newVisited.Contains(nextChar))
+                        stack2.Push(nextChar);
+                    newVisited.Add(nextChar);
                 }
             }
+            visited.UnionWith(newVisited);
             if (pathForSort.Count > 0) break;
             stack1 = stack2;
             stack2 = new Stack<char>();
@@ -42,14 +50,35 @@ class Program
         return GetNextPositionAndCurrentActionFromListPaths(pathForSort);
     }
 
-    public static List<char> GetPathFromDict(Dictionary<char, char> dictionaryForPath, char end)
+    public static List<List<char>> GetPathFromDict(Dictionary<char, List<char>> dictionaryForPath, char end)
     {
-        var result = new List<char>();
-        var currChar = end;
-        while (currChar != '\0')
+        var result = new List<List<char>>();
+        var stack1 = new Stack<List<char>>();
+        stack1.Push(new List<char>() {end});
+        var stack2 = new Stack<List<char>>();
+        while (true)
         {
-            result.Add(currChar);
-            currChar = dictionaryForPath[currChar];
+            while (stack1.Count > 0)
+            {
+                var currPartPath = stack1.Pop();
+                var currSymbol = currPartPath[currPartPath.Count - 1];
+                if (dictionaryForPath[currSymbol].Count == 0)
+                    result.Add(currPartPath);
+
+                for(var i = 0; i < dictionaryForPath[currSymbol].Count; i++)
+                {
+                    var nextSymbol = dictionaryForPath[currSymbol][i];
+                    var nextPath = currPartPath;
+                    if (i < dictionaryForPath[currSymbol].Count - 1)
+                        nextPath = nextPath.ToList(); 
+                    nextPath.Add(nextSymbol);
+                    stack2.Push(nextPath);
+                }
+            }
+            
+            if (result.Count > 0) break;
+            stack1 = stack2;
+            stack2 = new Stack<List<char>>();
         }
 
         return result;
@@ -59,16 +88,22 @@ class Program
     {
         Comparer<List<char>> comparer = Comparer<List<char>>.Create((list1, list2) =>
         {
-            var lastSymbol1 = list1[list1.Count - 1];
-            var lastSymbol2 = list2[list2.Count - 1];
+            var lastSymbol1 = list1[0];
+            var lastSymbol2 = list2[0];
             if (lastSymbol1.CompareTo(lastSymbol2) != 0)
                 return lastSymbol1.CompareTo(lastSymbol2);
-            return list1[1].CompareTo(list2[2]);
+            //мы работаем с перевёрнутым путём
+            for(var i = list1.Count - 2; i > 0; i--)
+            {
+                if (list1[i] != list2[i])
+                    return list1[i].CompareTo(list2[i]);
+            }
+            return 0;
         });
         pathForSort.Sort(comparer);
         var pathOnCurrentStep = pathForSort[0];
         var l = pathOnCurrentStep.Count;
-        return (pathOnCurrentStep[1], (pathOnCurrentStep[l - 1], pathOnCurrentStep[l - 2]));
+        return (pathOnCurrentStep[l - 2], (pathOnCurrentStep[0], pathOnCurrentStep[1]));
     }
     
     public static Dictionary<char, List<char>> CreateGraph(List<(string, string)> edges)
@@ -106,7 +141,7 @@ class Program
         var graph = CreateGraph(edges);
         var amountSteps = GetAmountSteps(edges);
         var currentPositionVirus = 'a';
-        for (var i = 0; i <= amountSteps; i++)
+        for (var i = 0; i < amountSteps; i++)
         {
             var step = GetNextPositionAndCurrentAction(graph, currentPositionVirus);
             currentPositionVirus = step.Item1;
