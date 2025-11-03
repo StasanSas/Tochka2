@@ -138,7 +138,7 @@ class Program
                 graph[pairForDelete.Item1].Add(pairForDelete.Item2);
                 graph[pairForDelete.Item2].Add(pairForDelete.Item1);
                 pairsForDelete.Add(pairForDelete);
-                return null;
+                continue;
             }
             var path = GetWinedPath(graph, pos, pairsForDelete);
             graph[pairForDelete.Item1].Add(pairForDelete.Item2);
@@ -150,7 +150,7 @@ class Program
                 return path;
             }
         }
-        return null; //сюда не должен зайти
+        return null; 
     }
     
     static SortedSet<(char, char)> GetPairsGateWay(List<(string, string)> edges)
