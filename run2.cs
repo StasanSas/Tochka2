@@ -7,7 +7,7 @@ class Program
 {
     
 
-    public static (char, (char, char)) GetNextPositionAndCurrentAction(
+    public static char GetNextPositionAndCurrentAction(
         Dictionary<char, List<char>> graph, char currPosition)
     {
         var stack1 = new Stack<char>();
@@ -84,7 +84,7 @@ class Program
         return result;
     }
 
-    public static (char, (char, char)) GetNextPositionAndCurrentActionFromListPaths(List<List<char>> pathForSort)
+    public static char GetNextPositionAndCurrentActionFromListPaths(List<List<char>> pathForSort)
     {
         Comparer<List<char>> comparer = Comparer<List<char>>.Create((list1, list2) =>
         {
@@ -103,9 +103,9 @@ class Program
         pathForSort.Sort(comparer);
         var pathOnCurrentStep = pathForSort[0];
         var l = pathOnCurrentStep.Count;
-        return (pathOnCurrentStep[l - 2], (pathOnCurrentStep[0], pathOnCurrentStep[1]));
+        return pathOnCurrentStep[l - 2];
     }
-    
+
     public static Dictionary<char, List<char>> CreateGraph(List<(string, string)> edges)
     {
         var result = new Dictionary<char, List<char>>();
@@ -121,34 +121,65 @@ class Program
 
         return result;
     }
-    
-    static int GetAmountSteps(List<(string, string)> edges)
+
+    public static List<(char, char)>? GetWinedPath(Dictionary<char, List<char>> graph,
+        char currentPositionVirus, SortedSet<(char, char)> pairsForDelete)
     {
-        var amountGateway = 0;
+        foreach (var pairForDelete in pairsForDelete.ToList()) // бходим в лексикографическом порядке
+        {
+            graph[pairForDelete.Item1].Remove(pairForDelete.Item2);
+            graph[pairForDelete.Item2].Remove(pairForDelete.Item1);
+            pairsForDelete.Remove(pairForDelete);
+            if (pairsForDelete.Count == 0)
+                return new List<(char, char)>(){pairForDelete};
+            var pos = GetNextPositionAndCurrentAction(graph, currentPositionVirus);
+            if (Char.IsUpper(pos))
+            {
+                graph[pairForDelete.Item1].Add(pairForDelete.Item2);
+                graph[pairForDelete.Item2].Add(pairForDelete.Item1);
+                pairsForDelete.Add(pairForDelete);
+                return null;
+            }
+            var path = GetWinedPath(graph, pos, pairsForDelete);
+            graph[pairForDelete.Item1].Add(pairForDelete.Item2);
+            graph[pairForDelete.Item2].Add(pairForDelete.Item1);
+            pairsForDelete.Add(pairForDelete);
+            if (path != null)
+            {
+                path.Add(pairForDelete);
+                return path;
+            }
+        }
+        return null; //сюда не должен зайти
+    }
+    
+    static SortedSet<(char, char)> GetPairsGateWay(List<(string, string)> edges)
+    {
+        var result = new SortedSet<(char, char)>();
         foreach (var edge in edges)
         {
             if (Char.IsUpper(edge.Item1[0]))
-                amountGateway += 1;
+                result.Add((edge.Item1[0], edge.Item2[0]));
             if (Char.IsUpper(edge.Item2[0]))
-                amountGateway += 1;
+                result.Add((edge.Item2[0], edge.Item1[0]));
         }
-        return amountGateway;
+
+        return result;
     }
     
     static List<string> Solve(List<(string, string)> edges)
     {
         var result = new List<string>();
         var graph = CreateGraph(edges);
-        var amountSteps = GetAmountSteps(edges);
+        var pairs = GetPairsGateWay(edges);
         var currentPositionVirus = 'a';
-        for (var i = 0; i < amountSteps; i++)
+
+        var path = GetWinedPath(graph, currentPositionVirus, pairs);
+        if (path == null) throw new Exception();
+        path.Reverse();
+        foreach (var pair in path)
         {
-            var step = GetNextPositionAndCurrentAction(graph, currentPositionVirus);
-            currentPositionVirus = step.Item1;
-            var pairForDelete = step.Item2;
-            graph[pairForDelete.Item1].Remove(pairForDelete.Item2);
-            graph[pairForDelete.Item2].Remove(pairForDelete.Item1);
-            Console.WriteLine($"{pairForDelete.Item1}-{pairForDelete.Item2}");
+            result.Add($"{pair.Item1}-{pair.Item2}");
         }
         
         return result;
